@@ -1,8 +1,8 @@
 from os import listdir
 from queue import Queue
 import numpy as np
-from keras.models import Sequential
-from keras.layers import Dense
+from keras.models import Sequential, Model
+from keras.layers import Dense, Input
 from keras.utils.np_utils import to_categorical
 from keras.preprocessing.text import Tokenizer
 from keras.preprocessing import sequence
@@ -89,41 +89,18 @@ def get_data():
             i += 1
     return X, y
 
-class Round(Layer):
-
-    def __init__(self, **kwargs):
-        super(Round, self).__init__(**kwargs)
-
-    def get_output(self, train=False):
-        X = self.get_input(train)
-        return K.round(X)
-
-    def get_config(self):
-        config = {"name": self.__class__.__name__}
-        base_config = super(Round, self).get_config()
-        return dict(list(base_config.items()) + list(config.items()))
-class Rounder(Layer):
-
-	def __init__(self, **kwargs):
-		super(Rounder, self).__init__(**kwargs)
-		self.output_dim = (2,)
-
-	def get_output_shape_for(self, input_shape):
-		return (input_shape[0], input_shape[1])
-
-	def call(self, x, mask=None):
-		x1 = K.round(x)
-		return x1
-
 def train_model():
     X, y = get_data()
     #y = to_categorical(y)
-    X = np.asarray([x[:6] for x in X])
-    y = np.asarray([y[0] for y in y])
+    X = np.asarray([x for x in X])
+    y1 = np.asarray([y[0] for y in y])
+    y2 = np.asarray([y[1] for y in y])
     X_train = X[:int(len(X)*0.8)]
-    y_train = y[:int(len(y)*0.8)]
+    y1_train = y1[:int(len(y)*0.8)]
+    y2_train = y2[:int(len(y)*0.8)]
     X_test = X[int(len(X)*0.8)+1:]
-    y_test = y[int(len(y)*0.8)+1:]
+    y1_test = y1[int(len(y)*0.8)+1:]
+    y2_test = y2[int(len(y)*0.8)+1:]
     #print(X_train[0:5])
     #print(y_train[0])
     def custom_activation(x):
@@ -133,20 +110,27 @@ def train_model():
         #return K.categorical_crossentropy(y_true, K.round(y_pred))
         return K.mean(K.square(K.round(y_pred) - y_true), axis=-1)
     model = Sequential()
-    model.add(Dense(1024, activation='relu', input_shape=(6,)))
-    for i in range(1):
-        model.add(Dense(1024, activation='relu'))
+    input_layer = Input(shape=(8,))
+    #model.add(input_layer)
+    #for i in range(1):
+        #model.add(Dense(1024, activation='relu'))
+    act = 'relu'
+    hidden = Dense(1024, activation=act)(input_layer)
+    #hidden = Dense(1024, activation=act)(hidden)
+    #model.add(hidden(input_layer))
     #for i in range(30):
     #    model.add(Dense(1024, activation='relu'))
-    model.add(Dense(4, activation='softmax'))
+    output1 = Dense(4, activation='softmax')(hidden)
+    output2 = Dense(4, activation='softmax')(hidden)
     #model.add(Dense(4, activation=custom_activation))
     #model.add(Rounder())
-    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
-    history = model.fit(x=X_train, y=y_train, batch_size=32, epochs=50, verbose=1)
-    print(model.evaluate(x=X_test, y=y_test))
-    predictions = model.predict(np.asarray(X_train))
-    for i,prediction in enumerate(predictions):
-        print(X_test[i], [(pred) for pred in prediction], y_test[i])
+    model = Model(inputs=input_layer, outputs=[output1, output2])
+    model.compile(optimizer='adam', loss=['categorical_crossentropy', 'categorical_crossentropy'], metrics=['accuracy'])
+    history = model.fit(x=X_train, y=[y1_train, y2_train], batch_size=32, epochs=350, verbose=1)
+    print(model.evaluate(x=X_test, y=[y1_test, y2_test]))
+    [predictions1, predictions2] = model.predict(np.asarray(X_train[:10]))
+    for i,prediction in enumerate(predictions1):
+        print(X_test[i][:4], prediction, y1_test[i], predictions2[i], y2_test[i])
 
 train_model()
 
