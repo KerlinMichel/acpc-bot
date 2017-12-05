@@ -4,7 +4,6 @@ from sys import argv
 sock = socket(AF_INET, SOCK_STREAM)
 
 sock.connect(('localhost', int(argv[1])))
-print('connect')
 
 sock.send(b'VERSION:2.0.0\r\n')
 
@@ -19,6 +18,10 @@ def isShowDown(cards):
 i = 0
 while True:
     line = sock.recv(4096)
+    if not line:
+        print('Done playing')
+        break
+    line = line.split()[-1]
     params = parse_line(line)
     if isShowDown(params[3]) or not line:
         i = 0
@@ -27,7 +30,6 @@ while True:
        if 'r' in params[2]:
            move = 'c'
        else:
-           move = 'r'
-       sock.send(line[:-2] + b':' + move.encode() + b'\r\n')
-       print('send', line[:-2] + b':' + move.encode() + b'\r\n')
+           move = 'c'
+       sock.send(line + b':' + move.encode() + b'\r\n')
     i += 1
