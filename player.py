@@ -7,7 +7,7 @@ import operator
 
 sock = socket(AF_INET, SOCK_STREAM)
 
-sock.connect(('localhost', int(argv[1])))
+sock.connect((argv[1], int(argv[2])))
 
 sock.send(b'VERSION:2.0.0\r\n')
 
